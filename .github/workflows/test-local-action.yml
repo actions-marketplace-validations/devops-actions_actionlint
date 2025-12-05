@@ -3,13 +3,26 @@ on:
   push:
 
   pull_request:
+
+permissions:
+  none
   
 jobs:
   test-local-action:
     name: Test with normal setup
     runs-on: ubuntu-latest
+    permissions:
+      # needed for the checkout action
+      contents: read
+      # needed to annotate the files in a pull request with comments
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v3
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       
       - name: Run the local action from the checked out branch
         id: action-lint
@@ -23,10 +36,10 @@ jobs:
           # fail the job so reporting can pick it up
           exit 1
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
-          name: actionlint-results
+          name: actionlint-results-local
           path: ${{ steps.action-lint.outputs.results-file }}
 
       - name: Test output file and expected contents
@@ -43,9 +56,19 @@ jobs:
   test-action-skip-failure:
     name: Test with skip failure set on the action
     runs-on: ubuntu-latest
-    needs: test-with-local-action
+    needs: test-local-action
+    permissions:
+      # needed for the checkout action
+      contents: read
+      # needed to annotate the files in a pull request with comments
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v3
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       
       - name: Run the local action from the checked out branch
         id: action-lint
@@ -63,10 +86,10 @@ jobs:
         run: |
           echo "Failure status was not expected"
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
-          name: actionlint-results
+          name: actionlint-results-failure
           path: ${{ steps.action-lint.outputs.results-file }}
 
       - name: Test output file and expected contents

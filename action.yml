@@ -8,6 +8,10 @@ inputs:
     description: "Fail the action if errors are found"
     required: false
     default: "true"
+  shellcheck_opts:
+    description: "Custom SHELLCHECK_OPTS"
+    required: false
+    default: ""
 outputs:
   results-file:
     description: "Path to the json results of the linter"
@@ -16,11 +20,22 @@ outputs:
 runs:
   using: composite
   steps:
+  - name: Get current rhysd/actionlint version
+    shell: bash
+    id: getversion
+    run: |
+      # get actionlintversion from the settings.json file
+      actionLintVersion=$(jq -r '.actionlintversion' $GITHUB_ACTION_PATH/settings.json)
+      actionlintversiontag=$(jq -r '.actionlintversiontag' $GITHUB_ACTION_PATH/settings.json)
+      echo "actionLintVersion=$actionLintVersion">>$GITHUB_OUTPUT
+      echo "Found the version of rhysd/actionlint to use [$actionlintversiontag], with SHA [$actionLintVersion]"
+
   - name: Docker run rhysd/actionlint
     shell: bash
     id: run
     env:
       FAILONERRORS: ${{ inputs.fail-on-errors }}
+      SHELLCHECK_OPTS: ${{ inputs.shellcheck_opts }}
     run: |
       # execute rhysd/actionlint as a docker container
 
@@ -29,10 +44,17 @@ runs:
 
       # matcher needed to annotate the PR with comments
       echo "::add-matcher::$GITHUB_ACTION_PATH/actionlint-matcher.json"
-      actionLintContainer=rhysd/actionlint@sha256:5f957b2a08d223e48133e1a914ed046bea12e578fe2f6ae4de47fdbe691a2468 # 1.6.22
+      version=${{ steps.getversion.outputs.actionLintVersion }}
+      actionLintContainer=$version
+
+      # check if version has a value
+      if [[ -z "$version" ]]; then
+        echo "ActionLint version to use is empty, cannot continue"
+        exit 1
+      fi
       
       # run again to get a json result
-      result=$(docker run -v $GITHUB_WORKSPACE:/repo --workdir /repo $actionLintContainer -color -format "{{json .}}")
+      result=$(docker run -v $GITHUB_WORKSPACE:/repo --workdir /repo -e SHELLCHECK_OPTS="${SHELLCHECK_OPTS}" $actionLintContainer -color -format "{{json .}}")
       status=$?
 
       if jq -e . >/dev/null 2>&1 <<<"$result"; then
@@ -57,7 +79,7 @@ runs:
         echo "Actionlint found errors"
         if [[ $FAILONERRORS == "true" ]]; then
           echo "Running the docker container directly to show the errors"
-          docker run -v $GITHUB_WORKSPACE:/repo --workdir /repo $actionLintContainer -color   
+          docker run -v $GITHUB_WORKSPACE:/repo --workdir /repo -e SHELLCHECK_OPTS="${SHELLCHECK_OPTS}" $actionLintContainer -color   
         fi        
       fi
 
