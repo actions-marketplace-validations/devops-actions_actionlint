@@ -5,7 +5,7 @@ on:
   pull_request:
 
 permissions:
-  none
+  contents: read
   
 jobs:
   test-local-action:
@@ -22,7 +22,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
       
       - name: Run the local action from the checked out branch
         id: action-lint
@@ -36,7 +36,7 @@ jobs:
           # fail the job so reporting can pick it up
           exit 1
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: always()
         with:
           name: actionlint-results-local
@@ -68,7 +68,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
       
       - name: Run the local action from the checked out branch
         id: action-lint
@@ -86,7 +86,7 @@ jobs:
         run: |
           echo "Failure status was not expected"
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: always()
         with:
           name: actionlint-results-failure
