@@ -30,6 +30,7 @@ jobs:
            
 
         - uses: devops-actions/issue-comment-tag@3a605c5f21e15e5b963c866421bf4189bcc32310 # v0.1.10
+          if: ${{ github.event_name != 'push' }}
           with:
             team: ${{ vars.TAG_TEAM }}
             issue: ${{ github.event.issue.number }}
