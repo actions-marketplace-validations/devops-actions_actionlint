@@ -25,9 +25,9 @@ runs:
     id: getversion
     run: |
       # get actionlintversion from the settings.json file
-      actionLintVersion=$(jq -r '.actionlintversion' $GITHUB_ACTION_PATH/settings.json)
-      actionlintversiontag=$(jq -r '.actionlintversiontag' $GITHUB_ACTION_PATH/settings.json)
-      echo "actionLintVersion=$actionLintVersion">>$GITHUB_OUTPUT
+      actionLintVersion=$(jq -r '.actionlintversion' "$GITHUB_ACTION_PATH/settings.json")
+      actionlintversiontag=$(jq -r '.actionlintversiontag' "$GITHUB_ACTION_PATH/settings.json")
+      echo "actionLintVersion=$actionLintVersion" >> "$GITHUB_OUTPUT"
       echo "Found the version of rhysd/actionlint to use [$actionlintversiontag], with SHA [$actionLintVersion]"
 
   - name: Docker run rhysd/actionlint
@@ -36,6 +36,7 @@ runs:
     env:
       FAILONERRORS: ${{ inputs.fail-on-errors }}
       SHELLCHECK_OPTS: ${{ inputs.shellcheck_opts }}
+      ACTIONLINT_VERSION: ${{ steps.getversion.outputs.actionLintVersion }}
     run: |
       # execute rhysd/actionlint as a docker container
 
@@ -44,8 +45,8 @@ runs:
 
       # matcher needed to annotate the PR with comments
       echo "::add-matcher::$GITHUB_ACTION_PATH/actionlint-matcher.json"
-      version=${{ steps.getversion.outputs.actionLintVersion }}
-      actionLintContainer=$version
+      version="$ACTIONLINT_VERSION"
+      actionLintContainer="$version"
 
       # check if version has a value
       if [[ -z "$version" ]]; then
@@ -54,7 +55,7 @@ runs:
       fi
       
       # run again to get a json result
-      result=$(docker run -v $GITHUB_WORKSPACE:/repo --workdir /repo -e SHELLCHECK_OPTS="${SHELLCHECK_OPTS}" $actionLintContainer -color -format "{{json .}}")
+      result=$(docker run -v "$GITHUB_WORKSPACE":/repo --workdir /repo -e SHELLCHECK_OPTS="${SHELLCHECK_OPTS}" "$actionLintContainer" -color -format "{{json .}}")
       status=$?
 
       if jq -e . >/dev/null 2>&1 <<<"$result"; then
@@ -62,15 +63,17 @@ runs:
       else
           echo "Failed to parse JSON, or got false/null"
 
-          if [[ $result -ne 'no project was found in any parent directories of ".". check workflows directory is put correctly in your Git repository' ]]; then
+          # the "no project was found" message goes to stderr and is already
+          # visible in the log, so $result is empty in that case
+          if [[ -n "$result" && "$result" != *"no project was found in any parent directories"* ]]; then
             echo "Showing the resulting messages:"
-            echo $result
+            echo "$result"
             echo "-------------------------------"
           fi
       fi
       
-      echo $result>"actionlint-errors.json"
-      echo "resultsfile=actionlint-errors.json">>$GITHUB_OUTPUT
+      printf '%s\n' "$result" > "actionlint-errors.json"
+      echo "resultsfile=actionlint-errors.json" >> "$GITHUB_OUTPUT"
       
       if [[ $status == 0 ]];
       then
@@ -79,7 +82,7 @@ runs:
         echo "Actionlint found errors"
         if [[ $FAILONERRORS == "true" ]]; then
           echo "Running the docker container directly to show the errors"
-          docker run -v $GITHUB_WORKSPACE:/repo --workdir /repo -e SHELLCHECK_OPTS="${SHELLCHECK_OPTS}" $actionLintContainer -color   
+          docker run -v "$GITHUB_WORKSPACE":/repo --workdir /repo -e SHELLCHECK_OPTS="${SHELLCHECK_OPTS}" "$actionLintContainer" -color
         fi        
       fi
 
